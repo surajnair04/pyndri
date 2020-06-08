@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <math.h> 
 
 #include <antlr/NoViableAltException.hpp>
 #include <antlr/MismatchedTokenException.hpp>
@@ -27,7 +28,7 @@
 
 using std::string;
 
-#define ENCODING "latin1"
+#define ENCODING "utf-8"
 
 #define CHECK(condition) assert(condition)
 #define CHECK_EQ(first, second) assert(first == second)
@@ -763,13 +764,19 @@ static PyObject* QueryEnvironment_run_query(QueryEnvironment* self, PyObject* ar
     }
 
     PyObject* results = PyTuple_New(query_results.size());
-
+    std::vector<string> ext_doc_ids = self->query_env_->documentMetadata(query_results, "docno");
     Py_ssize_t pos = 0;
     for (; it != query_results.end(); ++it, ++pos) {
         PyObject* const result = PyTuple_New(include_snippets ? 3 : 2);
-
-        PyTuple_SetItem(result, 0, PyLong_FromLong(it->document));
-        PyTuple_SetItem(result, 1, PyFloat_FromDouble(it->score));
+        
+	std::string path = ext_doc_ids[pos];
+	size_t sep = path.find_last_of("/");
+        path = path.substr(sep + 1, path.size() - sep - 1);
+        size_t dot = path.find_last_of(".");
+	std::string ext_doc_id = path.substr(0, dot);
+	double score = exp(it->score);
+	PyTuple_SetItem(result, 0, PyUnicode_FromString(ext_doc_id.c_str()));
+        PyTuple_SetItem(result, 1, PyFloat_FromDouble(score));
 
         if (include_snippets) {
             PyTuple_SetItem(result, 2, PyUnicode_Decode(snippets[pos].c_str(),
